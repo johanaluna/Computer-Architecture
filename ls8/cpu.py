@@ -2,15 +2,34 @@
 
 import sys
 
+LDI = 0b10000010
+PRN = 0b01000111
+HLT = 0b00000001
+
 class CPU:
     """Main CPU class."""
 
     def __init__(self):
-        """Construct a new CPU."""
-        pass
+        """
+        Construct a new CPU.
+        Hint: Add list properties to the `CPU` class to hold 256 bytes of memory 
+        and 8 general-purpose registers.
+        """
+
+        self.ram = [0] * 256 # 256 bytes of memory
+        self.reg = [0] * 8   # 8 general-purpose registers
+        self.pc  = 0         # set the counter
+        
+    def ram_read(self, address):
+            return self.ram[address]
+
+    def ram_write(self, address, value):
+        self.ram[address] = value
+
 
     def load(self):
         """Load a program into memory."""
+        # writes pre-written commands in the program variable to RAM
 
         address = 0
 
@@ -19,10 +38,10 @@ class CPU:
         program = [
             # From print8.ls8
             0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
+            0b00000000, # Register 0
+            0b00001000, # 8 value
             0b01000111, # PRN R0
-            0b00000000,
+            0b00000000, # print(8 value)
             0b00000001, # HLT
         ]
 
@@ -60,6 +79,43 @@ class CPU:
 
         print()
 
+
     def run(self):
         """Run the CPU."""
-        pass
+        running = True
+        while running:
+            # after load 
+            # the instructions loaded cycle through RAM
+            command = self.ram[self.pc]
+            if command == LDI:
+                """Stop Program"""
+                # Reg Location
+                operand_a = self.ram_read(self.pc + 1)
+                # Value
+                operand_b = self.ram_read(self.pc + 2)
+
+
+                self.reg[operand_a] = operand_b
+                # counter is set 3 entries ahead 
+                # one for the currently command, value and
+                # other for the location
+                self.pc += 3
+            elif command == PRN:
+                # Reg Location
+                operand_a = self.ram_read(self.pc + 1)
+                print(self.reg[operand_a])
+                # counter is set 2 entries ahead
+                # 0ne for the currently command and other
+                # for the register location
+                self.pc += 2
+            elif command == HLT:
+                """Stop Program"""
+                running = False
+                self.pc += 1
+            else:
+                print("I do not recognize that command")
+                print(f"You are currently at Program Counter value: {self.pc}")
+                print(f"The command issued was: {self.ram_read(self.pc)}")
+                sys.exit(1)
+
+
