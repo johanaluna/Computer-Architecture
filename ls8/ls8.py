@@ -7,5 +7,12 @@ from cpu import *
 
 cpu = CPU()
 
-cpu.load()
+if len(sys.argv) != 2:
+    cpu.load()
+
+else:
+    filename = sys.argv[1]
+    cpu.load_file(filename)
+
+# cpu.load()
 cpu.run()

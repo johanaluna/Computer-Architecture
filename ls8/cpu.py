@@ -2,10 +2,6 @@
 
 import sys
 
-LDI = 0b10000010
-PRN = 0b01000111
-HLT = 0b00000001
-
 class CPU:
     """Main CPU class."""
 
@@ -17,14 +13,24 @@ class CPU:
         """
 
         self.ram = [0] * 256 # 256 bytes of memory
+        # Register is temporary storage area
         self.reg = [0] * 8   # 8 general-purpose registers
         self.pc  = 0         # set the counter
+        
+        self.HLT = 0b00000001
+        self.LDI = 0b10000010
+        self.PRN = 0b01000111
+        #DAY 2
+        self.MUL = 0b10100010
         
     def ram_read(self, address):
             return self.ram[address]
 
-    def ram_write(self, address, value):
-        self.ram[address] = value
+    def ram_write(self, MAR, value):
+        """
+        MAR: memory address register
+        """
+        self.ram[MAR] = value
 
 
     def load(self):
@@ -36,7 +42,6 @@ class CPU:
         # For now, we've just hardcoded a program:
 
         program = [
-            # From print8.ls8
             0b10000010, # LDI R0,8
             0b00000000, # Register 0
             0b00001000, # 8 value
@@ -45,10 +50,29 @@ class CPU:
             0b00000001, # HLT
         ]
 
-        for instruction in program:
-            self.ram[address] = instruction
+        for instruction  in program:
+            self.ram_write(address, instruction )
+            # self.ram[address] = instruction 
             address += 1
-
+ 
+    def load_file(self,filename):
+        address = 0
+        try:
+            with open(filename) as f:
+                for line in f:
+                    # Ignore comments
+                    comment_split = line.split("#")
+                    # Strip out whitespace
+                    num = comment_split[0].strip()
+                    # Ignore blank lines
+                    if num == '':
+                        continue
+                    instruction  = int(num,2)
+                    self.ram[address] = instruction 
+                    address += 1  
+        except FileNotFoundError:
+            print("File not found")
+            sys.exit(2)
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -86,36 +110,46 @@ class CPU:
         while running:
             # after load 
             # the instructions loaded cycle through RAM
-            command = self.ram[self.pc]
-            if command == LDI:
+            instruction  = self.ram[self.pc]
+            if instruction  == self.LDI:
                 """Stop Program"""
                 # Reg Location
                 operand_a = self.ram_read(self.pc + 1)
                 # Value
                 operand_b = self.ram_read(self.pc + 2)
-
-
                 self.reg[operand_a] = operand_b
                 # counter is set 3 entries ahead 
-                # one for the currently command, value and
+                # one for the currently instruction , value and
                 # other for the location
                 self.pc += 3
-            elif command == PRN:
+            elif instruction  == self.PRN:
                 # Reg Location
                 operand_a = self.ram_read(self.pc + 1)
                 print(self.reg[operand_a])
                 # counter is set 2 entries ahead
-                # 0ne for the currently command and other
+                # 0ne for the currently instruction  and other
                 # for the register location
                 self.pc += 2
-            elif command == HLT:
+            elif instruction == self.MUL:
+                """Stop Program"""
+                # Reg0
+                operand_a = self.ram_read(self.pc + 1)
+                # Reg0
+                operand_b = self.ram_read(self.pc + 2)
+                mult= self.reg[operand_a]*self.reg[operand_b]
+                self.reg[operand_a] = mult
+                # counter is set 3 entries ahead 
+                # one for the currently instruction , Register0 and
+                # other for the Register1
+                self.pc += 3
+            elif instruction  == self.HLT:
                 """Stop Program"""
                 running = False
                 self.pc += 1
+            
             else:
-                print("I do not recognize that command")
-                print(f"You are currently at Program Counter value: {self.pc}")
-                print(f"The command issued was: {self.ram_read(self.pc)}")
+                print("Not a valid instruction")
+                print(f"Error in the program counter(PC): {self.pc} \n with the instruction: {self.ram_read(self.pc)}")
                 sys.exit(1)
 
 
