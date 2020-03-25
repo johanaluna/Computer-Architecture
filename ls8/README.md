@@ -1,4 +1,9 @@
 # Project: The LS-8 Emulator
+### LINKS:
+https://techterms.com/definition/register
+https://www.youtube.com/watch?v=fpnE6UAfbtU
+https://www.youtube.com/watch?v=FZGugFqdr60
+
 
 ## Implementation of the LS-8 Emulator
 
