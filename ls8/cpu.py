@@ -172,49 +172,53 @@ class CPU:
 
     
     """
-    ******* COMPARE GREATER/EQUALS/LESS THAN... *******
+    ******* COMPARE GREATER/EQUALS/LESS THAN *******
     """
     def handle_JEQ(self,operand_a,operand_b):
         """
         If equal flag is set (true), jump to the address stored in the given register.
         """
-        self.handle_CMP(operand_a,operand_b)
         if self.fl & 0b00000001:
             self.handle_JMP(operand_a,operand_b)
+        else: 
+            self.pc +=2
 
     def handle_JGE(self,operand_a,operand_b):
         """
         If greater-than flag or equal flag is set (true), 
         jump to the address stored in the given register.
         """
-        self.handle_CMP(operand_a,operand_b)
         if self.fl & (0b00000010 | 0b00000001):
             self.handle_JMP(operand_a,operand_b)
+        else: 
+            self.pc +=2
     
     def handle_JGT(self,operand_a,operand_b):
         """
         If greater-than flag is set (true), jump to the address stored in the given register.
         """
-        self.handle_CMP(operand_a,operand_b)
         if self.fl & 0b00000010:
-            self.handle_JMP(operand_a,operand_b)   
+            self.handle_JMP(operand_a,operand_b)
+        else: 
+            self.pc +=2
 
     def handle_JLE(self,operand_a,operand_b):
         """
         If less-than flag or equal flag is set (true), jump to the address stored in the given register.
         """
-        self.handle_CMP(operand_a,operand_b)
         if self.fl & (0b00000100 | 0b00000001):
             self.handle_JMP(operand_a,operand_b)
-        
+        else: 
+            self.pc +=2
+
     def handle_JLT(self,operand_a,operand_b):
         """
         If greater-than flag is set (true), jump to the address stored in the given register.
         """
-        self.handle_CMP(operand_a,operand_b)
         if self.fl & 0b00000100:
             self.handle_JMP(operand_a,operand_b)
-    
+        else: 
+            self.pc +=2
     def handle_JMP(self,operand_a,operand_b):
         """
         Jump to the address stored in the given register.
@@ -226,13 +230,11 @@ class CPU:
         """
         If greater-than flag is set (true), jump to the address stored in the given register.
         """
-        self.handle_CMP(operand_a,operand_b)
+        
         if self.fl & (0b00000100 | 0b00000010):
             self.handle_JMP(operand_a,operand_b)
-    
-
-
-   
+        else: 
+            self.pc +=2
    
     """
     ******* PUSH / POP *******
@@ -284,13 +286,8 @@ class CPU:
         self.pc += 3
     def handle_CMP(self,operand_a,operand_b):
         self.fl = 0b00000000
-        compare = alu2._cmp(self.reg[operand_a],self.reg[operand_b])
-        if compare == 0b00000100:
-            self.fl = self.fl | 0b00000100
-        if compare == 0b00000010:
-            self.fl = self.fl | 0b00000010
-        if compare == 0b00000001:
-            self.fl = self.fl | 0b00000001
+        self.fl = alu2._cmp(self.reg[operand_a],self.reg[operand_b])
+        
         self.pc += 3
         return self.fl
     def handle_DEC(self,operand_a,operand_b):
