@@ -2,6 +2,7 @@
 
 import sys
 import command
+import alu2
 
 class CPU:
     """Main CPU class."""
@@ -20,15 +21,14 @@ class CPU:
         self.pc  = 0                    # set the program counter
         self.create_branchtable()
         # R5 is reserved as the interrupt mask (IM)
-        
         # R6 is reserved as the interrupt status (IS)
-        
         # R7 is reserved as the stack pointer (SP)
         self.sp = 7
         self.fl = 0
 
     def create_branchtable(self):
         self.branchtable = {}
+        
         filename = 'command.py'
         with open(filename) as f:
             for line in f:
@@ -41,7 +41,10 @@ class CPU:
                 name_function = 'handle_'+ command_name
                 function = getattr(self, name_function)  
                 self.branchtable[int(command_value,2)] = function
-
+    
+    """
+    ******* RAM READ / WRITE *******
+    """
 
     def ram_read(self, address):
         return self.ram[address]
@@ -52,7 +55,9 @@ class CPU:
         """
         self.ram[MAR] = value
 
-
+    """
+    ******* LOADS *******
+    """
     def load(self):
         """Load a program into memory."""
         # writes pre-written commands in the program variable to RAM
@@ -93,57 +98,10 @@ class CPU:
         except FileNotFoundError:
             print("File not found")
             sys.exit(2)
-
-    def alu(self, op, reg_a, reg_b):
-        """
-        ALU operations.
-        link: https://python-reference.readthedocs.io/en/latest/docs/operators/#assignment-operators
-        """
-
-        if op == "ADD":
-            self.reg[reg_a] += self.reg[reg_b]
-        elif op == "MUL":
-            self.reg[reg_a] *= self.reg[reg_b]
-        elif op == "DIV":
-            self.reg[reg_a] /= self.reg[reg_b]
-        elif op == "MOD":
-            self.reg[reg_a] %= self.reg[reg_b]
-
-        elif op == "INC":
-            self.reg[reg_a] += 1
-        elif op == "DEC":
-            self.reg[reg_a] -= 1
-
-        elif op == "CMP":
-            if self.reg[reg_a] == self.reg[reg_b]:
-                # set the E flag to 1
-                self.fl = 0b00000001
-            elif self.reg[reg_a] < self.reg[reg_b]:
-                # set the L flag to 1
-                self.fl = 0b00000100
-            else:
-                # set the G flag to 1
-                self.fl = 0b00000010
-
-        elif op == "AND":
-            self.reg[reg_a] &= self.reg[reg_b]
-        elif op == "NOT":
-            self.reg[reg_a] =  ~self.reg[reg_b]
-        elif op == "OR":
-            self.reg[reg_a] |= self.reg[reg_b]
-        elif op == "XOR":
-            self.reg[reg_a] ^= self.reg[reg_b]
-        elif op == "SHL":
-            self.reg[reg_a] <<= self.reg[reg_b]
-        elif op == "SHR":
-            self.reg[reg_a] >>= self.reg[reg_b]
-        
-        
-        #elif op == "SUB": etc
-        else:
-            raise Exception("Unsupported ALU operation")
-
-          
+    
+    """
+    ******* Print Out the CPU State *******
+    """
     def trace(self):
         """
         Handy function to print out the CPU state. You might want to call this
@@ -164,60 +122,135 @@ class CPU:
 
         print()
 
+    """
+    ******* INSTRUCTIONS *******
+    """
     def handle_LDI(self,operand_a,operand_b):
         self.reg[operand_a] = operand_b
         self.pc += 3
-
     def handle_PRN(self,operand_a,operand_b):
         print(self.reg[operand_a])
         self.pc += 2
-
-    def handle_MUL(self,operand_a,operand_b):
-        self.alu('MUL',operand_a,operand_b)
-        self.pc += 3
-
     def handle_HLT(self,operand_a,operand_b):
         self.running = False
+    def handle_LD(self,operand_a,operand_b):
+        #Loads registerA with the value at the memory address stored in registerB
+        self.reg[operand_a] = self.ram_read(self.reg[operand_b])
+    def handle_PRA(self,operand_a,operand_b):
+        print(chr(self.reg[operand_a]), end="")
+
+    def handle_CALL(self,operand_a,operand_b):
+        # # Set PC to val stored in registers[operand_a]
+        # I cannot use Stack here because in the stack I use reg[a]
+        self.reg[self.sp] = alu2.dec(self.reg[self.sp])
+        self.ram_write(self.reg[self.sp], self.pc + 2)
+        # set the pc to the value in the register
+        # self.handle_PUSH(self.pc+2, operand_b)
+        self.pc = self.reg[operand_a]
+
+    def handle_RET(self,operand_a,operand_b):
+        """ Return from subroutine
+        Pop the value from the top of the stack and store it in the PC."""
+        self.pc = self.handle_POP(operand_a,operand_b)
+        
+    def handle_ST(self,operand_a,operand_b):
+        """Store value in registerB in the address stored in registerA."""
+        self.ram_write(self.reg[operand_a],self.reg[operand_b])
+    
+    def handle_INT(self,operand_a,operand_b):
+        """set the _n_th bit in the IS register to the value in the given register"""
+        pass
+    def handle_JGE(self,operand_a,operand_b):
+        """
+        If greater-than flag or equal flag is set (true), 
+        jump to the address stored in the given register.
+        """
+        self.pc = self.reg[operand_a]
+    
 
     """
-    The SP points at the value at the top of
-    the stack (most recently pushed),
-    or at address F4 if the stack is empty.
+    ******* PUSH / POP *******
     """
     def handle_PUSH(self,operand_a,operand_b):
         """
         Link:
         https://www.youtube.com/watch?v=d-2Peb3pCBg
         Push Data:
-        - write data above the top
-        - update top
+        - Decrement the SP
+        - Copy the value in the given register to the address pointed to by SP
         """
         # decrement the SP
-        self.reg[self.sp] -= 1
+        
+        self.reg[self.sp] = alu2.dec(self.reg[self.sp])
+        
+        # self.ram_write(self.reg[self.sp], self.reg[operand_a])
         self.ram_write(self.reg[self.sp], self.reg[operand_a])
         self.pc += 2
+        
 
     def handle_POP(self,operand_a,operand_b):
         """
         POP Data
-        - Read data on top stack
-        - Update top
+        - Copyt the value from the address pointed to by sp 
+        - Increase the SP
         """
         # get last value: self.ram_read(self.reg[self.sp])
         self.reg[operand_a] = self.ram_read(self.reg[self.sp])
         # increment the SP
-        self.reg[self.sp] += 1
+        self.reg[self.sp] = alu2.inc(self.reg[self.sp])
         self.pc += 2
+        return (self.reg[operand_a])
+    
+    """
+    ******* ALU INSTRUCTIONS *******
+    """
+    def handle_MUL(self,operand_a,operand_b):
+        self.reg[operand_a] = alu2.mul(self.reg[operand_a],self.reg[operand_b])
+        self.pc += 3
+    def handle_ADD(self,operand_a,operand_b):
+        self.reg[operand_a] = alu2.add(self.reg[operand_a],self.reg[operand_b])
+        self.pc += 3
+    def handle_SUB(self,operand_a,operand_b):
+        self.reg[operand_a] = alu2.add(self.reg[operand_a],self.reg[operand_b])
+        self.pc += 3
+    def handle_AND(self,operand_a,operand_b):
+        self.reg[operand_a] = alu2._and(self.reg[operand_a],self.reg[operand_b])
+        self.pc += 3
+    def handle_CMP(self,operand_a,operand_b):
+        self.fl = alu2._cmp(self.reg[operand_a],self.reg[operand_b])
+        self.pc += 3
+        return self.fl
+    def handle_DEC(self,operand_a,operand_b):
+        self.reg[operand_a] = alu2.dec(self.reg[operand_a])
+        self.pc += 3
+    def handle_DIV(self,operand_a,operand_b):
+        self.reg[operand_a] = alu2.div(self.reg[operand_a],self.reg[operand_b])
+        self.pc += 3
+    def handle_INC(self,operand_a,operand_b):
+        self.reg[operand_a] = alu2.inc(self.reg[operand_a])
+        self.pc += 3
+    def handle_MOD(self,operand_a,operand_b):
+        self.reg[operand_a] = alu2.mod(self.reg[operand_a],self.reg[operand_b])
+        self.pc += 3
+    def handle_NOT(self,operand_a,operand_b):
+        self.reg[operand_a] = alu2._not(self.reg[operand_a],self.reg[operand_b])
+        self.pc += 3 
+    def handle_OR(self,operand_a,operand_b):
+        self.reg[operand_a] = alu2._or(self.reg[operand_a],self.reg[operand_b])
+        self.pc += 3
+    def handle_SHL(self,operand_a,operand_b):
+        self.reg[operand_a] = alu2.shl(self.reg[operand_a],self.reg[operand_b])
+        self.pc += 3
+    def handle_SHR(self,operand_a,operand_b):
+        self.reg[operand_a] = alu2.shr(self.reg[operand_a],self.reg[operand_b])
+        self.pc += 3
+    def handle_XOR(self,operand_a,operand_b):
+        self.reg[operand_a] = alu2.xor(self.reg[operand_a],self.reg[operand_b])
+        self.pc += 3
 
-
-    def handle_LD(self,operand_a,operand_b):
-        #Loads registerA with the value at the memory address stored in registerB
-        self.reg[operand_a] = self.ram_read(self.reg[operand_b])
-
-    def handle_PRA(self,operand_a,operand_b):
-        print(chr(self.reg[operand_a]), end="")
-
-        
+    """
+    ******* RUN *******
+    """    
     def run(self):
         self.running = True
         while self.running:
