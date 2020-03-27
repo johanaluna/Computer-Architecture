@@ -136,8 +136,10 @@ class CPU:
     def handle_LD(self,operand_a,operand_b):
         #Loads registerA with the value at the memory address stored in registerB
         self.reg[operand_a] = self.ram_read(self.reg[operand_b])
+        self.pc += 3
     def handle_PRA(self,operand_a,operand_b):
-        print(chr(self.reg[operand_a]), end="")
+        print(chr(self.reg[operand_a]),end="")
+        self.pc += 2
 
     def handle_CALL(self,operand_a,operand_b):
         # # Set PC to val stored in registers[operand_a]
@@ -153,24 +155,21 @@ class CPU:
         Return from subroutine
         Pop the value from the top of the stack and store it in the PC.
         """
-        self.pc = self.handle_POP(operand_a,operand_b)
+        self.pc = self.ram_read(self.reg[self.sp])
+        self.reg[self.sp] = alu2.inc(self.reg[self.sp])
+        
         
     def handle_ST(self,operand_a,operand_b):
         """Store value in registerB in the address stored in registerA."""
         self.ram_write(self.reg[operand_a],self.reg[operand_b])
     
-    def handle_INT(self,operand_a,operand_b):
-        """set the _n_th bit in the IS register to the value in the given register"""
-        pass
 
     def handle_NOP(self,operand_a,operand_b):
         """No operation. Do nothing for this instruction"""
         pass
 
-
     
 
-    
     """
     ******* COMPARE GREATER/EQUALS/LESS THAN *******
     """
@@ -287,18 +286,17 @@ class CPU:
     def handle_CMP(self,operand_a,operand_b):
         self.fl = 0b00000000
         self.fl = alu2._cmp(self.reg[operand_a],self.reg[operand_b])
-        
         self.pc += 3
         return self.fl
     def handle_DEC(self,operand_a,operand_b):
         self.reg[operand_a] = alu2.dec(self.reg[operand_a])
-        self.pc += 3
+        self.pc += 2
     def handle_DIV(self,operand_a,operand_b):
         self.reg[operand_a] = alu2.div(self.reg[operand_a],self.reg[operand_b])
         self.pc += 3
     def handle_INC(self,operand_a,operand_b):
         self.reg[operand_a] = alu2.inc(self.reg[operand_a])
-        self.pc += 3
+        self.pc += 2
     def handle_MOD(self,operand_a,operand_b):
         self.reg[operand_a] = alu2.mod(self.reg[operand_a],self.reg[operand_b])
         self.pc += 3
